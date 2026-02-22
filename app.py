@@ -23,8 +23,6 @@ login_manager.login_view = "login"
 login_manager.login_message_category = "warning"
 
 
-# ---------------- Models ----------------
-
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, index=True, nullable=False)
@@ -53,8 +51,6 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 
-# ---------------- Forms ----------------
-
 class RegisterForm(FlaskForm):
     name = StringField("Full name", validators=[DataRequired(), Length(min=2, max=120)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
@@ -75,15 +71,10 @@ class AssignmentForm(FlaskForm):
     submit = SubmitField("Save assignment")
 
 
-# ---------------- Helper ----------------
-
 def to_utc(dt_local_naive: datetime) -> datetime:
-    # Interpret naive datetime-local as local time, store UTC
     local_ts = dt_local_naive.timestamp()
     return datetime.fromtimestamp(local_ts, tz=timezone.utc)
 
-
-# ---------------- Routes ----------------
 
 @app.route("/")
 def home():
@@ -105,11 +96,16 @@ def dashboard():
         )
         db.session.add(assignment)
         db.session.commit()
-
         flash("✅ Assignment saved successfully!", "success")
         return redirect(url_for("dashboard"))
 
-    return render_template("dashboard.html", form=form)
+    assignments = (
+        Assignment.query.filter_by(user_id=current_user.id)
+        .order_by(Assignment.due_at.asc())
+        .all()
+    )
+
+    return render_template("dashboard.html", form=form, assignments=assignments)
 
 
 @app.route("/register", methods=["GET", "POST"])

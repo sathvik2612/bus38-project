@@ -3,12 +3,12 @@
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-lg-8">
-    <div class="card shadow-sm border-0">
+    <div class="card shadow-sm border-0 mb-3">
       <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
           <div>
             <h1 class="h4 mb-1">Add assignment</h1>
-            <div class="text-muted">This step saves into DB and shows a notification (no list yet).</div>
+            <div class="text-muted">Save into DB and view your assignments below.</div>
           </div>
         </div>
 
@@ -34,6 +34,38 @@
         </form>
       </div>
     </div>
+
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-4">
+        <h2 class="h5 mb-3">Your assignments</h2>
+
+        {% if assignments|length == 0 %}
+          <p class="text-muted mb-0">No assignments added yet.</p>
+        {% else %}
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th class="text-nowrap">Due (UTC)</th>
+                  <th class="text-nowrap">Created (UTC)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for a in assignments %}
+                  <tr>
+                    <td class="fw-semibold">{{ a.title }}</td>
+                    <td class="text-nowrap">{{ a.due_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                    <td class="text-nowrap">{{ a.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
   </div>
 </div>
 {% endblock %}
