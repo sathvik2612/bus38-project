@@ -1,11 +1,39 @@
 {% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
 {% block content %}
-<h3>Add Assignment</h3>
-<form method="post">
-  {{ form.hidden_tag() }}
-  <div class="mb-3">{{ form.title.label }} {{ form.title(class="form-control") }}</div>
-  <div class="mb-3">{{ form.due_at.label }} {{ form.due_at(class="form-control") }}</div>
-  <button class="btn btn-success">{{ form.submit.label.text }}</button>
-</form>
-<p class="text-muted mt-3">Assignments are saved to database. No listing shown in this version.</p>
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+          <div>
+            <h1 class="h4 mb-1">Add assignment</h1>
+            <div class="text-muted">This step saves into DB and shows a notification (no list yet).</div>
+          </div>
+        </div>
+
+        <form method="post">
+          {{ form.hidden_tag() }}
+
+          <div class="mb-3">
+            {{ form.title.label(class="form-label") }}
+            {{ form.title(class="form-control", placeholder="e.g., Finish project report") }}
+            {% for e in form.title.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="mb-3">
+            {{ form.due_at.label(class="form-label") }}
+            {{ form.due_at(class="form-control") }}
+            <div class="form-text">Pick date + time (stored as UTC internally).</div>
+            {% for e in form.due_at.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="d-grid">
+            {{ form.submit(class="btn btn-success") }}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

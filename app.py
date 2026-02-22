@@ -20,6 +20,10 @@ db = SQLAlchemy(app)
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
+login_manager.login_message_category = "warning"
+
+
+# ---------------- Models ----------------
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -29,22 +33,27 @@ class User(db.Model, UserMixin):
 
     assignments = db.relationship("Assignment", backref="user", lazy=True, cascade="all, delete-orphan")
 
-    def set_password(self, password):
+    def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
 
-    def check_password(self, password):
+    def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
+
 
 class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     due_at = db.Column(db.DateTime(timezone=True), nullable=False)
-    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
 
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
+
+
+# ---------------- Forms ----------------
 
 class RegisterForm(FlaskForm):
     name = StringField("Full name", validators=[DataRequired(), Length(min=2, max=120)])
@@ -53,19 +62,28 @@ class RegisterForm(FlaskForm):
     confirm = PasswordField("Confirm password", validators=[DataRequired(), EqualTo("password")])
     submit = SubmitField("Create account")
 
+
 class LoginForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
     password = PasswordField("Password", validators=[DataRequired()])
     submit = SubmitField("Sign in")
 
+
 class AssignmentForm(FlaskForm):
     title = StringField("Assignment title", validators=[DataRequired(), Length(min=2, max=200)])
     due_at = DateTimeLocalField("Due date & time", format="%Y-%m-%dT%H:%M", validators=[DataRequired()])
-    submit = SubmitField("Add assignment")
+    submit = SubmitField("Save assignment")
 
-def to_utc(dt_local):
-    local_ts = dt_local.timestamp()
+
+# ---------------- Helper ----------------
+
+def to_utc(dt_local_naive: datetime) -> datetime:
+    # Interpret naive datetime-local as local time, store UTC
+    local_ts = dt_local_naive.timestamp()
     return datetime.fromtimestamp(local_ts, tz=timezone.utc)
+
+
+# ---------------- Routes ----------------
 
 @app.route("/")
 def home():
@@ -73,10 +91,12 @@ def home():
         return redirect(url_for("dashboard"))
     return redirect(url_for("login"))
 
+
 @app.route("/dashboard", methods=["GET", "POST"])
 @login_required
 def dashboard():
     form = AssignmentForm()
+
     if form.validate_on_submit():
         assignment = Assignment(
             user_id=current_user.id,
@@ -85,41 +105,66 @@ def dashboard():
         )
         db.session.add(assignment)
         db.session.commit()
-        flash("Assignment saved successfully!", "success")
+
+        flash("✅ Assignment saved successfully!", "success")
         return redirect(url_for("dashboard"))
+
     return render_template("dashboard.html", form=form)
+
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+
     form = RegisterForm()
     if form.validate_on_submit():
-        if User.query.filter_by(email=form.email.data.lower()).first():
-            flash("Email already exists", "warning")
+        email = form.email.data.lower().strip()
+
+        if User.query.filter_by(email=email).first():
+            flash("An account with that email already exists. Please sign in.", "warning")
             return redirect(url_for("login"))
-        user = User(email=form.email.data.lower(), name=form.name.data)
+
+        user = User(email=email, name=form.name.data.strip())
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
+
         login_user(user)
+        flash("Account created. You're signed in!", "success")
         return redirect(url_for("dashboard"))
+
     return render_template("register.html", form=form)
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data.lower()).first()
-        if user and user.check_password(form.password.data):
-            login_user(user)
-            return redirect(url_for("dashboard"))
-        flash("Invalid credentials", "danger")
+        email = form.email.data.lower().strip()
+        user = User.query.filter_by(email=email).first()
+
+        if not user or not user.check_password(form.password.data):
+            flash("Invalid email or password.", "danger")
+            return render_template("login.html", form=form)
+
+        login_user(user)
+        flash("Signed in successfully.", "success")
+        return redirect(url_for("dashboard"))
+
     return render_template("login.html", form=form)
+
 
 @app.route("/logout")
 @login_required
 def logout():
     logout_user()
+    flash("Signed out.", "info")
     return redirect(url_for("login"))
+
 
 if __name__ == "__main__":
     with app.app_context():
