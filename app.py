@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timezone
-from flask import Flask, render_template, redirect, url_for, flash
+from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy.query import Query
@@ -70,7 +70,7 @@ class LoginForm(FlaskForm):
 class AssignmentForm(FlaskForm):
     title = StringField("Assignment title", validators=[DataRequired(), Length(min=2, max=200)])
     due_at = DateTimeLocalField("Due date & time", format="%Y-%m-%dT%H:%M", validators=[DataRequired()])
-    submit = SubmitField("Save assignment")
+    submit = SubmitField("Add assignment")
 
     def validate_due_at(self, due_at):
         if due_at and due_at.data < datetime.now():
@@ -114,14 +114,49 @@ def dashboard():
     return render_template("dashboard.html", form=form, assignments=assignments)
 
 
-@app.route("/complete/<int:id>", methods=["GET", "POST"])
+@app.route("/complete_assignment/<int:id>", methods=["GET", "POST"])
 @login_required
-def complete(id):
+def complete_assignment(id):
     assignment = Assignment.query.get_or_404(id)
     if current_user.id != assignment.user_id:
         flash("You are not authorised to access this assignment", "security")
         return redirect(url_for("dashboard"))
     assignment.completed = not assignment.completed
+    db.session.commit()
+    return redirect(url_for("dashboard"))
+
+@app.route("/edit_assignments/<int:id>", methods=["GET", "POST"])
+@login_required
+def edit_assignments(id):
+    assignment = Assignment.query.get_or_404(id)
+
+    if current_user.id != assignment.user_id:
+        return redirect(url_for("dashboard"))
+
+    assignments = (
+        Assignment.query.filter_by(user_id=current_user.id)
+        .order_by(Assignment.completed.asc(), Assignment.due_at.asc())
+        .all()
+    )
+
+    form = AssignmentForm(obj=assignment)
+
+    if form.validate_on_submit():
+        assignment.title = form.title.data
+        assignment.due_at = form.due_at.data
+        db.session.commit()
+        return redirect(url_for("dashboard"))
+
+    return render_template("edit_assignment.html", form=form, id=id, assignments=assignments)
+
+
+@app.route("/delete_assignment/<int:id>", methods=["GET", "POST"])
+@login_required
+def delete_assignment(id):
+    assignment = Assignment.query.get_or_404(id)
+    if current_user.id != assignment.user_id:
+        return redirect(url_for("dashboard"))
+    db.session.delete(assignment)
     db.session.commit()
     return redirect(url_for("dashboard"))
 

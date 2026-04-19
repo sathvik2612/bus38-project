@@ -7,8 +7,7 @@
       <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
           <div>
-            <h1 class="h4 mb-1">Add assignment</h1>
-            <div class="text-muted">Save your assignments.</div>
+            <h1 class="h4 mb-1">Edit assignment</h1>
           </div>
         </div>
 
@@ -24,12 +23,17 @@
           <div class="mb-3">
             {{ form.due_at.label(class="form-label") }}
             {{ form.due_at(class="form-control") }}
-            <div class="form-text">Pick date + time.</div>
             {% for e in form.due_at.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
 
-          <div class="d-grid">
-            {{ form.submit(class="btn btn-success") }}
+          <div class="d-flex gap-2">
+            {{ form.submit(class="btn btn-success flex-grow-1", value="Update") }}
+            <a
+              href="{{ url_for('delete_assignment', id=id) }}"
+              class="btn btn-danger"
+              onclick="return confirm('Delete this?')">
+              Delete
+            </a>
           </div>
         </form>
       </div>
@@ -53,11 +57,7 @@
               </thead>
               <tbody>
                 {% for a in assignments %}
-                  <tr
-                    class="clickable-row"
-                    data-href="{{url_for('edit_assignments', id=a.id)}}"
-                    style="cursor: pointer"
-                  >
+                  <tr>
                     {% if a.completed %}
                       <td class="text-muted"><del>{{ a.title }}</del></td>
                       <td class="text-nowrap; text-muted"><del>{{ a.created_at.strftime("%Y-%m-%d %H:%M") }}</del></td>
@@ -69,14 +69,6 @@
                       <td class="text-nowrap; fw-semibold">{{ a.due_at.strftime("%Y-%m-%d %H:%M") }}</td>
 
                     {% endif %}
-                    <td>
-                      <form action="{{ url_for('complete_assignment', id=a.id) }}" method="GET" >
-                        <input type="checkbox"
-                          {% if a.completed %} Checked {% endif %}
-                          onchange="this.form.submit()"
-                        >
-                      </form>
-                    </td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -88,16 +80,4 @@
 
   </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-  <script>
-    document.querySelectorAll(".clickable-row").forEach(row => {
-    row.addEventListener("click", function(e) {
-        if (e.target.type !== 'checkbox' && e.target.tagName !== 'A' && e.target.tagName !== 'BUTTON') {
-            window.location.href = this.dataset.href;
-        }
-    });
-});
-  </script>
 {% endblock %}
