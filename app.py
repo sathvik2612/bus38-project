@@ -9,6 +9,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from wtforms import StringField, PasswordField, SubmitField
 from wtforms.fields import DateTimeLocalField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError
+from collections import defaultdict
+from wtforms import StringField, PasswordField, SubmitField, IntegerField
+from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional, NumberRange
+
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -43,18 +47,30 @@ class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     title = db.Column(db.String(200), nullable=False)
+    module = db.Column(db.String(50), nullable=True)
+    estimated_hours = db.Column(db.Integer, default=1)
     due_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    completed = db.Column(db.Boolean, nullable=False, default=False)
+    completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    completed = db.Column(db.Boolean, nullable=False, default=0)
 
-    @property
-    def high_priority(self):
+    def is_urgent(self):
         if self.completed:
             return False
-        else:
-            return self.due_at <= (datetime.now() + timedelta(days=5))
-
-
+        now = datetime.now(timezone.utc)
+        due = self.due_at
+        if due.tzinfo is None:
+            due = due.replace(tzinfo=timezone.utc)
+        return due <= now + timedelta(days=3)
+    
+    def is_overdue(self):
+        if self.completed:
+            return False
+        now = datetime.now(timezone.utc)
+        due = self.due_at
+        if due.tzinfo is None:
+            due = due.replace(tzinfo=timezone.utc)
+        return now > due
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
@@ -221,7 +237,82 @@ def logout():
     flash("Signed out.", "info")
     return redirect(url_for("login"))
 
-
+@app.route("/analytics")
+@login_required
+def analytics():
+    """Analytics dashboard with stats and charts (S6, S7)."""
+    all_assignments = Assignment.query.filter_by(user_id=current_user.id).all()
+    
+    if not all_assignments:
+        return render_template("analytics.html", has_data=False)
+    
+    # Basic counts
+    total = len(all_assignments)
+    completed = [a for a in all_assignments if a.completed]
+    pending = [a for a in all_assignments if not a.completed]
+    overdue = [a for a in pending if a.is_overdue()]
+    urgent = [a for a in pending if a.is_urgent() and not a.is_overdue()]
+    
+    # Completion rate
+    completion_rate = round((len(completed) / total) * 100) if total > 0 else 0
+    
+    # Hours
+    total_hours = sum(a.estimated_hours or 0 for a in all_assignments)
+    pending_hours = sum(a.estimated_hours or 0 for a in pending)
+    avg_hours = round(total_hours / total, 1) if total > 0 else 0
+    
+    # Module breakdown
+    module_stats = defaultdict(lambda: {"total": 0, "completed": 0, "hours": 0})
+    for a in all_assignments:
+        mod = a.module or "No Module"
+        module_stats[mod]["total"] += 1
+        module_stats[mod]["hours"] += a.estimated_hours or 0
+        if a.completed:
+            module_stats[mod]["completed"] += 1
+    
+    module_stats = dict(sorted(module_stats.items(), key=lambda x: x[1]["total"], reverse=True))
+    
+    # Weekly workload (next 4 weeks)
+    today = datetime.now(timezone.utc)
+    weekly_workload = []
+    for week in range(4):
+        week_start = today + timedelta(days=week * 7)
+        week_end = week_start + timedelta(days=7)
+        
+        def in_week(a):
+            due = a.due_at
+            if due.tzinfo is None:
+                due = due.replace(tzinfo=timezone.utc)
+            return week_start <= due < week_end
+        
+        week_assignments = [a for a in pending if in_week(a)]
+        week_hours = sum(a.estimated_hours or 0 for a in week_assignments)
+        
+        weekly_workload.append({
+            "week": f"Week {week + 1}",
+            "start": week_start.strftime("%d %b"),
+            "count": len(week_assignments),
+            "hours": week_hours,
+            "level": "danger" if week_hours > 20 else ("warning" if week_hours > 10 else "success")
+        })
+    
+    stats = {
+        "total": total,
+        "completed": len(completed),
+        "pending": len(pending),
+        "overdue": len(overdue),
+        "urgent": len(urgent),
+        "completion_rate": completion_rate,
+        "avg_hours": avg_hours,
+        "pending_hours": pending_hours
+    }
+    
+    return render_template("analytics.html",
+        has_data=True,
+        stats=stats,
+        module_stats=module_stats,
+        weekly_workload=weekly_workload
+    )
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
