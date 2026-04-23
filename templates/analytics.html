@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Analytics - Workload Planner{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold mb-1">📊 Analytics Dashboard</h2>
+    <p class="text-muted mb-0">Understand your workload patterns</p>
+</div>
+
+{% if not has_data %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <div class="mb-3">
+            <span style="font-size: 4rem;">📊</span>
+        </div>
+        <h4>No data yet</h4>
+        <p class="text-muted mb-4">Add some assignments to see your analytics</p>
+        <a href="{{ url_for('add_assignment') }}" class="btn btn-primary btn-lg">+ Add Assignment</a>
+    </div>
+</div>
+{% else %}
+
+<!-- Stats Cards Row 1 -->
+<div class="row mb-4">
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="stat-number text-primary">{{ stats.total }}</div>
+            <div class="text-muted">Total</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="stat-number text-success">{{ stats.completion_rate }}%</div>
+            <div class="text-muted">Completion Rate</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="stat-number text-warning">{{ stats.pending }}</div>
+            <div class="text-muted">Pending</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="stat-number text-danger">{{ stats.overdue }}</div>
+            <div class="text-muted">Overdue</div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Cards Row 2 -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card stat-card h-100">
+            <div class="stat-number">{{ stats.avg_hours }}h</div>
+            <div class="text-muted">Avg Hours/Assignment</div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card stat-card h-100">
+            <div class="stat-number text-info">{{ stats.pending_hours }}h</div>
+            <div class="text-muted">Total Hours Pending</div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card stat-card h-100">
+            <div class="stat-number text-success">{{ stats.on_time }}</div>
+            <div class="text-muted">Completed On Time</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Weekly Workload -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <strong>📅 Upcoming Workload (Next 4 Weeks)</strong>
+            </div>
+            <div class="card-body">
+                {% for week in weekly_workload %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>{{ week.week }} <small class="text-muted">({{ week.start }})</small></span>
+                        <span><strong>{{ week.count }}</strong> assignments · <strong>{{ week.hours }}</strong>h</span>
+                    </div>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-{{ week.level }}" 
+                             style="width: {{ [week.hours * 4, 100] | min }}%">
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Busiest Days -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <strong>📈 Assignments by Day of Week</strong>
+            </div>
+            <div class="card-body">
+                {% for day in busiest_days %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>{{ day.day }}</span>
+                        <span>{{ day.count }}</span>
+                    </div>
+                    <div class="progress" style="height: 15px;">
+                        <div class="progress-bar bg-primary" 
+                             style="width: {{ [day.count * 15, 100] | min }}%">
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Module Breakdown -->
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <strong>📚 Workload by Module</strong>
+    </div>
+    <div class="card-body">
+        {% if module_stats %}
+        <div class="table-responsive">
+            <table class="table mb-0">
+                <thead>
+                    <tr>
+                        <th>Module</th>
+                        <th>Total</th>
+                        <th>Completed</th>
+                        <th>Hours</th>
+                        <th style="width: 200px;">Progress</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for module, data in module_stats.items() %}
+                    <tr>
+                        <td><strong>{{ module }}</strong></td>
+                        <td>{{ data.total }}</td>
+                        <td>{{ data.completed }}</td>
+                        <td>{{ data.hours }}h</td>
+                        <td>
+                            {% set pct = ((data.completed / data.total) * 100) | int if data.total > 0 else 0 %}
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar bg-success" style="width: {{ pct }}%">
+                                    {{ pct }}%
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No module data available</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
