@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Calendar - Workload Planner{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold mb-1">📅 Workload Calendar</h2>
+    <p class="text-muted mb-0">Plan your work, avoid clashes</p>
+</div>
+
+<!-- Weekly Workload Warnings -->
+{% if weekly_warnings %}
+<div class="alert alert-warning mb-4">
+    <strong>⚠️ Heavy Workload Detected!</strong>
+    <ul class="mb-0 mt-2">
+        {% for w in weekly_warnings %}
+        <li>
+            <strong>Week {{ w.week }}</strong> (days {{ w.start }}-{{ w.end }}): 
+            <span class="badge bg-{{ w.level }}">{{ w.hours }} hours</span> 
+            across {{ w.count }} assignment(s)
+            {% if w.level == 'danger' %} — Consider rescheduling!{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<!-- Clash Warnings -->
+{% if clashes %}
+<div class="alert alert-danger mb-4">
+    <strong>🔴 Deadline Clashes Found!</strong>
+    <ul class="mb-0 mt-2">
+        {% for clash in clashes %}
+        <li>
+            <strong>Day {{ clash.day }}:</strong> {{ clash.count }} assignments 
+            ({{ clash.hours }}h total) — {{ clash.titles | join(', ') }}
+        </li>
+        {% endfor %}
+    </ul>
+    <p class="mb-0 mt-2"><small>Go to <a href="{{ url_for('assignments') }}">Assignments</a> to edit due dates.</small></p>
+</div>
+{% endif %}
+
+<!-- Month Navigation -->
+<div class="card mb-4">
+    <div class="card-body d-flex justify-content-between align-items-center">
+        <a href="{{ url_for('calendar', year=prev_year, month=prev_month) }}" class="btn btn-outline-secondary">
+            ← Previous
+        </a>
+        <h4 class="mb-0 fw-bold">{{ month_name }} {{ year }}</h4>
+        <a href="{{ url_for('calendar', year=next_year, month=next_month) }}" class="btn btn-outline-secondary">
+            Next →
+        </a>
+    </div>
+</div>
+
+<!-- Calendar Grid -->
+<div class="card mb-4">
+    <table class="table table-bordered mb-0">
+        <thead class="table-light">
+            <tr>
+                <th class="text-center" style="width: 14.28%">Mon</th>
+                <th class="text-center" style="width: 14.28%">Tue</th>
+                <th class="text-center" style="width: 14.28%">Wed</th>
+                <th class="text-center" style="width: 14.28%">Thu</th>
+                <th class="text-center" style="width: 14.28%">Fri</th>
+                <th class="text-center" style="width: 14.28%">Sat</th>
+                <th class="text-center" style="width: 14.28%">Sun</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for week in calendar_weeks %}
+            <tr>
+                {% for day in week %}
+                {% if day %}
+                <td class="calendar-day p-2 
+                    {% if day.is_today %}calendar-today{% endif %}
+                    {% if day.has_clash %}bg-danger bg-opacity-10{% elif day.has_overdue %}bg-danger bg-opacity-10{% elif day.has_urgent %}bg-warning bg-opacity-10{% endif %}">
+                    
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="fw-bold {% if day.is_today %}text-primary{% endif %}">{{ day.day }}</span>
+                        {% if day.total_hours > 0 %}
+                        <span class="badge {% if day.total_hours > 8 %}bg-danger{% elif day.total_hours > 4 %}bg-warning{% else %}bg-secondary{% endif %}">
+                            {{ day.total_hours }}h
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if day.has_clash %}
+                    <div class="small text-danger mb-1">⚠️ Clash!</div>
+                    {% endif %}
+                    
+                    {% for a in day.assignments %}
+                    <div class="small p-1 rounded mb-1 
+                        {% if a.completed %}bg-success bg-opacity-25{% elif a.is_overdue() %}bg-danger bg-opacity-25{% elif a.is_urgent() %}bg-warning bg-opacity-50{% else %}bg-primary bg-opacity-10{% endif %}"
+                        style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <span class="{% if a.completed %}text-decoration-line-through{% endif %}">
+                            {{ a.title[:15] }}{% if a.title|length > 15 %}...{% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </td>
+                {% else %}
+                <td class="calendar-day bg-light"></td>
+                {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Legend -->
+<div class="card">
+    <div class="card-body py-2">
+        <div class="d-flex flex-wrap gap-3 justify-content-center">
+            <span><span class="badge bg-primary bg-opacity-25 text-dark">█</span> Pending</span>
+            <span><span class="badge bg-warning bg-opacity-50 text-dark">█</span> Due Soon</span>
+            <span><span class="badge bg-danger bg-opacity-25 text-dark">█</span> Overdue/Clash</span>
+            <span><span class="badge bg-success bg-opacity-25 text-dark">█</span> Completed</span>
+            <span><span class="badge bg-secondary">4h</span> Hours that day</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
