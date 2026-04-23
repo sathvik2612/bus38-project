@@ -558,6 +558,10 @@ def analytics():
         busiest_days=busiest_days
     )
 
+# INITIALIZE DATABASE
+with app.app_context():
+    db.create_all()
+
 # ERROR HANDLERS
 @app.errorhandler(404)
 def not_found(e):

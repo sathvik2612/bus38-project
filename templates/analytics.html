@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Analytics - Workload Planner{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div><h1 class="h3 mb-1">📊 Analytics Dashboard</h1><p class="text-muted mb-0">Review your workload and completion progress.</p></div>
+  <a href="{{ url_for('add_assignment') }}" class="btn btn-primary">+ Add Assignment</a>
+</div>
+{% if not has_data %}
+<div class="card"><div class="card-body text-center py-5"><h2 class="h5">No analytics yet</h2><p class="text-muted">Add assignments first to see workload statistics.</p><a href="{{ url_for('add_assignment') }}" class="btn btn-primary">Add your first assignment</a></div></div>
+{% else %}
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="card stat-card"><div class="stat-number text-primary">{{ stats.total }}</div><div>Total</div></div></div>
+  <div class="col-md-3"><div class="card stat-card"><div class="stat-number text-success">{{ stats.completed }}</div><div>Completed</div></div></div>
+  <div class="col-md-3"><div class="card stat-card"><div class="stat-number text-warning">{{ stats.pending }}</div><div>Pending</div></div></div>
+  <div class="col-md-3"><div class="card stat-card"><div class="stat-number text-danger">{{ stats.overdue }}</div><div>Overdue</div></div></div>
+</div>
+<div class="row g-4 mb-4">
+  <div class="col-lg-6"><div class="card h-100"><div class="card-body"><h2 class="h5">Completion Progress</h2><div class="progress my-3" style="height: 28px;"><div class="progress-bar" style="width: {{ stats.completion_rate }}%;">{{ stats.completion_rate }}%</div></div><p><strong>On-time:</strong> {{ stats.on_time }} | <strong>Late:</strong> {{ stats.late }}</p><p class="mb-0"><strong>Urgent pending:</strong> {{ stats.urgent }}</p></div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-body"><h2 class="h5">Workload Summary</h2><p><strong>Average estimated hours:</strong> {{ stats.avg_hours }}</p><p class="mb-0"><strong>Pending estimated hours:</strong> {{ stats.pending_hours }}</p></div></div></div>
+</div>
+<div class="row g-4">
+  <div class="col-lg-6"><div class="card h-100"><div class="card-body"><h2 class="h5 mb-3">Next 4 Weeks</h2>{% for week in weekly_workload %}<div class="mb-3"><div class="d-flex justify-content-between"><strong>{{ week.week }} ({{ week.start }})</strong><span>{{ week.count }} task(s), {{ week.hours }} hour(s)</span></div><div class="progress mt-1"><div class="progress-bar bg-{{ week.level }}" style="width: {{ [week.hours * 5, 100]|min }}%;"></div></div></div>{% endfor %}</div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-body"><h2 class="h5 mb-3">Module Breakdown</h2><table class="table"><thead><tr><th>Module</th><th>Total</th><th>Completed</th><th>Hours</th></tr></thead><tbody>{% for module, data in module_stats.items() %}<tr><td>{{ module }}</td><td>{{ data.total }}</td><td>{{ data.completed }}</td><td>{{ data.hours }}</td></tr>{% endfor %}</tbody></table></div></div></div>
+</div>
+{% endif %}
+{% endblock %}
